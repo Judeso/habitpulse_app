@@ -1,0 +1,50 @@
+{
+  "name": "HabitPulse",
+  "short_name": "HabitPulse",
+  "description": "Construis de meilleures habitudes, un jour à la fois.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0e13",
+  "theme_color": "#c8f07c",
+  "orientation": "portrait",
+  "categories": ["health", "lifestyle", "productivity"],
+  "lang": "fr",
+  "icons": [
+    { "src": "icons/icon-72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-128.png",  "sizes": "128x128", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-144.png",  "sizes": "144x144", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-152.png",  "sizes": "152x152", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-384.png",  "sizes": "384x384", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/today.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow" },
+    { "src": "screenshots/stats.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Aujourd'hui",
+      "short_name": "Aujourd'hui",
+      "description": "Voir mes habitudes du jour",
+      "url": "/?tab=today",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Quiz Santé",
+      "short_name": "Quiz",
+      "description": "Faire le quiz bien-être",
+      "url": "/?tab=quiz",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=app.habitpulse",
+      "id": "app.habitpulse"
+    }
+  ],
+  "prefer_related_applications": false
+}
