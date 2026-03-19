@@ -995,21 +995,29 @@ function initApp(){
     document.getElementById('app').classList.add('visible');
     document.getElementById('onboarding').classList.add('hidden');
     document.getElementById('greetTxt').textContent='Bonjour, '+S.name+' !';
-  }catch(e){console.error('[HP] initApp header error:',e);}
-  try{updateHeader();}catch(e){console.error('[HP] updateHeader error:',e);}
-  try{renderToday();}catch(e){console.error('[HP] renderToday error:',e);}
-  try{renderQuiz();}catch(e){console.error('[HP] renderQuiz error:',e);}
-  try{renderFriends();}catch(e){console.error('[HP] renderFriends error:',e);}
-  try{renderStats();}catch(e){console.error('[HP] renderStats error:',e);}
-  try{updateRewardedCard();}catch(e){console.error('[HP] updateRewardedCard error:',e);}
+    console.log('[HP] App visible ✅');
+  }catch(e){console.error('[HP] initApp header:',e);}
+
+  try{updateHeader();}catch(e){console.error('[HP] updateHeader:',e);}
+
+  // Rendre uniquement l'onglet actif au démarrage
+  try{
+    showTab('today');
+    console.log('[HP] renderToday ✅');
+  }catch(e){console.error('[HP] renderToday crash:',e);}
+
+  try{updateRewardedCard();}catch(e){}
+
   setTimeout(function(){
     try{
-      if(typeof Notification!=='undefined'&&Notification.permission==='default'&&!localStorage.getItem('hp_notif_dismissed'))
+      if(typeof Notification!=='undefined' && Notification.permission==='default' && !localStorage.getItem('hp_notif_dismissed'))
         document.getElementById('notifBanner').style.display='flex';
     }catch(e){}
   },3000);
-  try{applySettingsUI();}catch(e){console.error('[HP] applySettingsUI error:',e);}
-  try{if(S.settings&&S.settings.notifEnabled)scheduleNotif();}catch(e){}
+
+  try{applySettingsUI();}catch(e){console.error('[HP] applySettingsUI:',e);}
+  try{if(S.settings && S.settings.notifEnabled) scheduleNotif();}catch(e){}
+  console.log('[HP] initApp terminé ✅');
 }
 function updateHeader(){
   const l=lv(S.points);
@@ -1370,14 +1378,23 @@ function confirmReset(){
 //  NAVIGATION
 // ═══════════════════════════════════════════════════════════
 function showTab(tab){
-  document.querySelectorAll('.tb,.ni').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.tc').forEach(c=>c.classList.remove('active'));
-  document.querySelector(`.tb[data-t="${tab}"]`)?.classList.add('active');
-  document.querySelector(`.ni[data-n="${tab}"]`)?.classList.add('active');
-  document.getElementById('tab-'+tab)?.classList.add('active');
-  if(tab==='quiz')renderQuiz();
-  if(tab==='friends')renderFriends();
-  if(tab==='stats')renderStats();
+  try{
+    document.querySelectorAll('.tb,.ni').forEach(function(b){b.classList.remove('active');});
+    document.querySelectorAll('.tc').forEach(function(c){c.classList.remove('active');});
+    var tb=document.querySelector('.tb[data-t="'+tab+'"]');
+    var ni=document.querySelector('.ni[data-n="'+tab+'"]');
+    var tc=document.getElementById('tab-'+tab);
+    if(tb)tb.classList.add('active');
+    if(ni)ni.classList.add('active');
+    if(tc)tc.classList.add('active');
+    console.log('[HP] showTab:',tab,'→ tc found:',!!tc);
+  }catch(e){console.error('[HP] showTab error:',e);}
+  try{
+    if(tab==='today')renderToday();
+    else if(tab==='quiz')renderQuiz();
+    else if(tab==='friends')renderFriends();
+    else if(tab==='stats')renderStats();
+  }catch(e){console.error('[HP] render '+tab+' error:',e);}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1388,4 +1405,3 @@ function closePrem(e){if(!e||e.target.id==='premMo'||!e.target.closest('.ms'))do
 </script>
 </body>
 </html>
-<!-- deploy Thu Mar 19 11:57:06 UTC 2026 -->
