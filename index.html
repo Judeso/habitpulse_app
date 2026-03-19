@@ -12,7 +12,8 @@
 <meta property="og:description" content="Suivi d'habitudes, quiz santé, points et classement amis.">
 <meta property="og:type" content="website">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230c0e13'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle'%3E🌱%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230c0e13'/%3E%3Ctext x='96' y='130' font-size='110' text-anchor='middle'%3E🌱%3C/text%3E%3C/svg%3E">
 <title>HabitPulse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;0,900;1,300&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -64,6 +65,8 @@ input[type=text]:focus,input[type=time]:focus{border-color:var(--accent);}
 
 /* ══ APP ═════════════════════════════════════════════════ */
 #app{display:none;min-height:100vh;position:relative;z-index:1;padding-bottom:calc(88px + var(--safe-bot));}
+#app.visible{display:block !important;}
+#onboarding.hidden{display:none !important;}
 .app-header{display:flex;align-items:center;justify-content:space-between;padding:calc(1.2rem + var(--safe-top)) 1.4rem .4rem;position:sticky;top:0;z-index:20;background:linear-gradient(to bottom,var(--bg) 75%,transparent);}
 .logo-sm{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 .greet{font-size:.78rem;color:var(--muted);margin-top:.1rem;}
@@ -686,19 +689,34 @@ const QS=[4,3,2,1];
 // ═══════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════
+const DEFAULT_SETTINGS={notifEnabled:false,notifTime:'20:00',streakAlert:false,adsEnabled:true};
 let S={
   name:'',username:'',userId:'',
   habits:[],logs:{},quizResults:[],
   points:0,weekPoints:0,weekStart:'',
   friends:[],confettiDone:[],
-  settings:{notifEnabled:false,notifTime:'20:00',streakAlert:false,adsEnabled:true},
+  settings:Object.assign({},DEFAULT_SETTINGS),
   lastRewardedAd:null,
   isPremium:false,
 };
-function load(){const d=localStorage.getItem('hp4');if(d)try{S={...S,...JSON.parse(d)};}catch(e){}}
-function save(){localStorage.setItem('hp4',JSON.stringify(S));}
+function load(){
+  try{
+    const d=localStorage.getItem('hp4');
+    if(!d)return;
+    const parsed=JSON.parse(d);
+    S=Object.assign({},S,parsed);
+    // Toujours s'assurer que settings est un objet valide avec toutes ses clés
+    S.settings=Object.assign({},DEFAULT_SETTINGS,parsed.settings||{});
+    // Toujours s'assurer que les tableaux existent
+    if(!Array.isArray(S.habits))S.habits=[];
+    if(!Array.isArray(S.friends))S.friends=[];
+    if(!Array.isArray(S.confettiDone))S.confettiDone=[];
+    if(!S.logs||typeof S.logs!=='object')S.logs={};
+  }catch(e){console.warn('[HP] load() error:',e);S.settings=Object.assign({},DEFAULT_SETTINGS);}
+}
+function save(){try{localStorage.setItem('hp4',JSON.stringify(S));}catch(e){console.warn('[HP] save() error:',e);}}
 
-// Shared storage helpers
+// Shared storage helpers (Claude artifact only — no-op en production)
 async function sSet(k,v){try{if(window.storage)await window.storage.set(k,JSON.stringify(v),true);}catch(e){}}
 async function sGet(k){try{if(window.storage){const r=await window.storage.get(k,true);return r?JSON.parse(r.value):null;}}catch(e){}return null;}
 
@@ -718,6 +736,10 @@ function doy(){const n=new Date();return Math.floor((n-(new Date(n.getFullYear()
 //  SERVICE WORKER & PWA
 // ═══════════════════════════════════════════════════════════
 let deferredPrompt=null;
+// Global error handler — affiche une alerte lisible si bug JS
+window.addEventListener('error', function(e){
+  console.error('[HP] Erreur JS:', e.message, 'ligne', e.lineno);
+});
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('sw.js').then(reg=>{
@@ -890,13 +912,36 @@ function watchAd(){
 //  ONBOARDING
 // ═══════════════════════════════════════════════════════════
 let selH=[];
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('[HP] DOM ready');
   load();
-  document.getElementById('obName').addEventListener('input',chkOb);
-  document.getElementById('obUser').addEventListener('input',chkOb);
-  if(S.name){document.getElementById('onboarding').style.display='none';initApp();}
-  else{
-    document.getElementById('hgrid').innerHTML=HO.map(h=>`<div class="hop" id="h_${h.id}" onclick="togH('${h.id}')">${h.e} ${h.n}</div>`).join('');
+  console.log('[HP] State loaded — name:', S.name, 'habits:', S.habits.length);
+
+  document.getElementById('obName').addEventListener('input', chkOb);
+  document.getElementById('obUser').addEventListener('input', chkOb);
+
+  // Session valide = nom + au moins 1 habitude
+  var sessionOK = S.name && S.habits && S.habits.length > 0;
+  console.log('[HP] Session valide:', sessionOK);
+
+  if(sessionOK){
+    document.getElementById('onboarding').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    initApp();
+  } else {
+    // Reset au cas où données corrompues
+    if(S.name && (!S.habits || S.habits.length === 0)){
+      console.warn('[HP] Session corrompue (nom sans habits), reset');
+      S.name = ''; S.habits = []; save();
+    }
+    // Afficher la grille d'habitudes
+    var grid = document.getElementById('hgrid');
+    if(grid) {
+      grid.innerHTML = HO.map(function(h){
+        return '<div class="hop" id="h_'+h.id+'" onclick="togH(\''+h.id+'\')" style="cursor:pointer">'+h.e+' '+h.n+'</div>';
+      }).join('');
+      console.log('[HP] Grille habitudes rendue:', grid.children.length, 'items');
+    }
   }
 });
 function togH(id){
@@ -906,39 +951,65 @@ function togH(id){
   chkOb();
 }
 function chkOb(){
-  const n=document.getElementById('obName').value.trim();
-  const u=document.getElementById('obUser').value.trim();
-  document.getElementById('startBtn').disabled=!(n&&u&&selH.length===3);
+  var n=document.getElementById('obName').value.trim();
+  var u=document.getElementById('obUser').value.trim();
+  var ok=!!(n&&u&&selH.length===3);
+  console.log('[HP] chkOb — nom:',!!n,' pseudo:',!!u,' habits:',selH.length,' btn:',ok);
+  document.getElementById('startBtn').disabled=!ok;
 }
 function startApp(){
-  const n=document.getElementById('obName').value.trim();
-  const u=document.getElementById('obUser').value.trim();
-  if(!n||!u||selH.length!==3)return;
-  S.name=n;S.username=u;S.userId=genId();
-  S.habits=selH.map(id=>{const h=HO.find(o=>o.id===id);return{id:h.id,e:h.e,n:h.n};});
-  S.logs={};S.points=0;S.weekPoints=0;S.weekStart=monStr();S.friends=[];S.confettiDone=[];
-  save();pub();
-  document.getElementById('onboarding').style.display='none';
-  initApp();
+  console.log('[HP] startApp() appelé — selH:',selH);
+  try{
+    var n=document.getElementById('obName').value.trim();
+    var u=document.getElementById('obUser').value.trim();
+    console.log('[HP] n=',n,' u=',u,' selH=',selH.length);
+    if(!n||!u||selH.length!==3){console.warn('[HP] incomplet');return;}
+    S.name=n;S.username=u;S.userId=genId();
+    S.habits=selH.map(function(id){var h=HO.find(function(o){return o.id===id;});return{id:h.id,e:h.e,n:h.n};});
+    S.logs={};S.points=0;S.weekPoints=0;S.weekStart=monStr();S.friends=[];S.confettiDone=[];
+    S.settings=Object.assign({},DEFAULT_SETTINGS);
+    console.log('[HP] S.habits=',S.habits);
+    save();
+    console.log('[HP] Saved. Affichage...');
+    var ob=document.getElementById('onboarding');
+    var ap=document.getElementById('app');
+    ob.classList.add('hidden');
+    ap.classList.add('visible');
+    console.log('[HP] onboarding hidden:',ob.classList.contains('hidden'));
+    console.log('[HP] app visible:',ap.classList.contains('visible'));
+    console.log('[HP] app computed display:',window.getComputedStyle(ap).display);
+    initApp();
+    console.log('[HP] ✅ startApp done');
+  }catch(err){
+    console.error('[HP] startApp CRASH:',err.message,err.stack);
+    alert('Erreur: '+err.message);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
 function initApp(){
-  weekReset();
-  document.getElementById('greetTxt').textContent=`Bonjour, ${S.name} !`;
-  updateHeader();
-  renderToday();renderQuiz();renderFriends();renderStats();
-  updateRewardedCard();
-  // Show notification banner after 3s if not granted
-  setTimeout(()=>{
-    if(Notification.permission==='default'&&!localStorage.getItem('hp_notif_dismissed'))
-      document.getElementById('notifBanner').style.display='flex';
+  try{
+    weekReset();
+    document.getElementById('app').classList.add('visible');
+    document.getElementById('onboarding').classList.add('hidden');
+    document.getElementById('greetTxt').textContent='Bonjour, '+S.name+' !';
+  }catch(e){console.error('[HP] initApp header error:',e);}
+  try{updateHeader();}catch(e){console.error('[HP] updateHeader error:',e);}
+  try{renderToday();}catch(e){console.error('[HP] renderToday error:',e);}
+  try{renderQuiz();}catch(e){console.error('[HP] renderQuiz error:',e);}
+  try{renderFriends();}catch(e){console.error('[HP] renderFriends error:',e);}
+  try{renderStats();}catch(e){console.error('[HP] renderStats error:',e);}
+  try{updateRewardedCard();}catch(e){console.error('[HP] updateRewardedCard error:',e);}
+  setTimeout(function(){
+    try{
+      if(typeof Notification!=='undefined'&&Notification.permission==='default'&&!localStorage.getItem('hp_notif_dismissed'))
+        document.getElementById('notifBanner').style.display='flex';
+    }catch(e){}
   },3000);
-  // Restore settings UI
-  applySettingsUI();
-  if(S.settings.notifEnabled)scheduleNotif();
+  try{applySettingsUI();}catch(e){console.error('[HP] applySettingsUI error:',e);}
+  try{if(S.settings&&S.settings.notifEnabled)scheduleNotif();}catch(e){}
 }
 function updateHeader(){
   const l=lv(S.points);
@@ -1265,22 +1336,30 @@ function openSettings(){
 }
 function closeSettings(){document.getElementById('settingsPanel').classList.add('hidden');}
 function applySettingsUI(){
-  const s=S.settings||{};
-  document.getElementById('notifSw').classList.toggle('on',!!s.notifEnabled);
-  document.getElementById('streakAlertSw').classList.toggle('on',!!s.streakAlert);
-  document.getElementById('notifTimeRow').style.display=s.notifEnabled?'flex':'none';
-  if(s.notifTime)document.getElementById('notifTime').value=s.notifTime;
-  document.getElementById('stgUsername').textContent='@'+S.username;
-  document.getElementById('stgCode').textContent=S.userId;
-  const l=lv(S.points);document.getElementById('stgLevel').textContent=l.e+' '+l.n;
-  document.getElementById('adStatusLbl').textContent=S.isPremium?'Désactivées (Premium)':'Actives';
+  const s=S.settings||DEFAULT_SETTINGS;
+  try{document.getElementById('notifSw').classList.toggle('on',!!s.notifEnabled);}catch(e){}
+  try{document.getElementById('streakAlertSw').classList.toggle('on',!!s.streakAlert);}catch(e){}
+  try{document.getElementById('notifTimeRow').style.display=s.notifEnabled?'flex':'none';}catch(e){}
+  try{if(s.notifTime)document.getElementById('notifTime').value=s.notifTime;}catch(e){}
+  try{document.getElementById('stgUsername').textContent='@'+S.username;}catch(e){}
+  try{document.getElementById('stgCode').textContent=S.userId;}catch(e){}
+  try{const l=lv(S.points);document.getElementById('stgLevel').textContent=l.e+' '+l.n;}catch(e){}
+  try{document.getElementById('adStatusLbl').textContent=S.isPremium?'Désactivées (Premium)':'Actives';}catch(e){}
 }
 function toggleNotifSetting(){
+  if(!S.settings)S.settings=Object.assign({},DEFAULT_SETTINGS);
   if(!S.settings.notifEnabled){requestNotifPermission();}
   else{S.settings.notifEnabled=false;save();clearTimeout(window._notifTimer);applySettingsUI();}
 }
-function toggleStreakAlert(){S.settings.streakAlert=!S.settings.streakAlert;save();applySettingsUI();}
-function saveNotifTime(){S.settings.notifTime=document.getElementById('notifTime').value;save();if(S.settings.notifEnabled)scheduleNotif();}
+function toggleStreakAlert(){
+  if(!S.settings)S.settings=Object.assign({},DEFAULT_SETTINGS);
+  S.settings.streakAlert=!S.settings.streakAlert;save();applySettingsUI();
+}
+function saveNotifTime(){
+  if(!S.settings)S.settings=Object.assign({},DEFAULT_SETTINGS);
+  S.settings.notifTime=document.getElementById('notifTime').value;save();
+  if(S.settings.notifEnabled)scheduleNotif();
+}
 function confirmReset(){
   if(confirm("⚠️ Toutes tes données seront effacées. Cette action est irréversible.\n\nContinuer ?")){
     localStorage.removeItem('hp4');location.reload();

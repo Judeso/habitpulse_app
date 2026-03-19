@@ -1,147 +1,66 @@
-// HabitPulse Service Worker v1.0
-// Gère : cache offline, notifications push, background sync
+/* HabitPulse — Service Worker v2.0
+   Aucun import/export — compatible avec tous les navigateurs */
 
-const CACHE_NAME = 'habitpulse-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  'https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;0,900;1,300&family=Syne:wght@400;600;700;800&display=swap',
-];
+var CACHE = 'hp-v2';
+var ASSETS = ['/', '/index.html'];
 
-// ── INSTALL ──────────────────────────────────────────────
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing HabitPulse SW...');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Cache partiel :', err);
-      });
-    })
-  );
+self.addEventListener('install', function(e) {
   self.skipWaiting();
-});
-
-// ── ACTIVATE ─────────────────────────────────────────────
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    )
-  );
-  self.clients.claim();
-});
-
-// ── FETCH (cache-first pour assets, network-first pour API) ─
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // Ne pas intercepter les requêtes API Supabase/Anthropic
-  if (url.hostname.includes('supabase') || url.hostname.includes('anthropic') || url.hostname.includes('pagead')) {
-    return;
-  }
-
-  // Cache-first pour fonts et assets statiques
-  if (url.hostname.includes('fonts.googleapis') || url.hostname.includes('fonts.gstatic')) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        return cached || fetch(event.request).then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        });
-      })
-    );
-    return;
-  }
-
-  // Network-first pour les pages
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok && event.request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
-});
-
-// ── PUSH NOTIFICATIONS ───────────────────────────────────
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'HabitPulse';
-  const options = {
-    body: data.body || "N'oublie pas tes habitudes aujourd'hui !",
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-72.png',
-    vibrate: [200, 100, 200],
-    tag: data.tag || 'habitpulse-reminder',
-    renotify: true,
-    data: { url: data.url || '/' },
-    actions: [
-      { action: 'open',    title: '✅ Voir mes habitudes' },
-      { action: 'dismiss', title: '⏰ Plus tard' },
-    ],
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-// ── NOTIFICATION CLICK ───────────────────────────────────
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-
-  if (event.action === 'dismiss') return;
-
-  const url = event.notification.data?.url || '/';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url === url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      return clients.openWindow(url);
+  e.waitUntil(
+    caches.open(CACHE).then(function(c) {
+      return c.addAll(ASSETS).catch(function() {});
     })
   );
 });
 
-// ── BACKGROUND SYNC (streak check) ──────────────────────
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'streak-check') {
-    event.waitUntil(checkStreakAndNotify());
-  }
+self.addEventListener('activate', function(e) {
+  e.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(
+        keys.filter(function(k) { return k !== CACHE; }).map(function(k) { return caches.delete(k); })
+      );
+    })
+  );
+  return self.clients.claim();
 });
 
-async function checkStreakAndNotify() {
-  // En production : appel Supabase pour vérifier la streak
-  // et envoyer une notif si l'utilisateur n'a rien coché aujourd'hui
-  console.log('[SW] Background sync: streak check');
-}
-
-// ── PERIODIC BACKGROUND SYNC (rappel quotidien) ──────────
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'daily-reminder') {
-    event.waitUntil(sendDailyReminder());
-  }
+self.addEventListener('fetch', function(e) {
+  var url = e.request.url;
+  /* Ne pas intercepter les API externes */
+  if (url.indexOf('anthropic') !== -1 || url.indexOf('supabase') !== -1 || url.indexOf('pagead') !== -1 || url.indexOf('fonts.g') !== -1) return;
+  e.respondWith(
+    fetch(e.request).then(function(res) {
+      if (res.ok && e.request.method === 'GET') {
+        var clone = res.clone();
+        caches.open(CACHE).then(function(c) { c.put(e.request, clone); });
+      }
+      return res;
+    }).catch(function() {
+      return caches.match(e.request);
+    })
+  );
 });
 
-async function sendDailyReminder() {
-  const hour = new Date().getHours();
-  if (hour >= 18 && hour <= 21) {
-    await self.registration.showNotification('HabitPulse 🌱', {
-      body: "Tu n'as pas encore coché toutes tes habitudes aujourd'hui !",
+self.addEventListener('push', function(e) {
+  var data = {};
+  try { data = e.data ? e.data.json() : {}; } catch(err) {}
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'HabitPulse 🌱', {
+      body: data.body || "N'oublie pas tes habitudes aujourd'hui !",
       icon: '/icons/icon-192.png',
-      badge: '/icons/icon-72.png',
-      tag: 'daily-reminder',
-      actions: [{ action: 'open', title: '✅ Les cocher maintenant' }],
-    });
-  }
-}
+      tag: 'hp-reminder',
+      vibrate: [200, 100, 200],
+      data: { url: '/' }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', function(e) {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window' }).then(function(list) {
+      if (list.length) return list[0].focus();
+      return clients.openWindow('/');
+    })
+  );
+});

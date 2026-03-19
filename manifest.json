@@ -3,48 +3,37 @@
   "short_name": "HabitPulse",
   "description": "Construis de meilleures habitudes, un jour à la fois.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0c0e13",
   "theme_color": "#c8f07c",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "categories": ["health", "lifestyle", "productivity"],
   "lang": "fr",
   "icons": [
-    { "src": "icons/icon-72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-128.png",  "sizes": "128x128", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-144.png",  "sizes": "144x144", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-152.png",  "sizes": "152x152", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-384.png",  "sizes": "384x384", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-  ],
-  "screenshots": [
-    { "src": "screenshots/today.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow" },
-    { "src": "screenshots/stats.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow" }
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230c0e13'/%3E%3Ctext x='96' y='130' font-size='110' text-anchor='middle'%3E🌱%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230c0e13'/%3E%3Ctext x='256' y='340' font-size='300' text-anchor='middle'%3E🌱%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ],
   "shortcuts": [
     {
       "name": "Aujourd'hui",
-      "short_name": "Aujourd'hui",
-      "description": "Voir mes habitudes du jour",
-      "url": "/?tab=today",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "short_name": "Accueil",
+      "url": "/?tab=today"
     },
     {
       "name": "Quiz Santé",
       "short_name": "Quiz",
-      "description": "Faire le quiz bien-être",
-      "url": "/?tab=quiz",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "url": "/?tab=quiz"
     }
-  ],
-  "related_applications": [
-    {
-      "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=app.habitpulse",
-      "id": "app.habitpulse"
-    }
-  ],
-  "prefer_related_applications": false
+  ]
 }
